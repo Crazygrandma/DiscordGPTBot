@@ -1,2 +1,4 @@
 /sounds
 .env
+*.wav
+*.mp3

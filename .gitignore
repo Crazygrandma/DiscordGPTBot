@@ -2,3 +2,4 @@
 .env
 *.wav
 *.mp3
+/venv/

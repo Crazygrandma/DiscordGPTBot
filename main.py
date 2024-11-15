@@ -14,16 +14,19 @@ DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents) 
 
+SYNC = False
 
 @bot.event
 async def on_ready():
     print("Bot ready")
     await bot.change_presence(activity=discord.Game("GOMMEMODE"))
-    # try:
-    #     synced_commands = await bot.tree.sync()
-    #     print(f"Synced {len(synced_commands)} commands.")
-    # except Exception as e:
-    #     print("An error with syncing application commands occurred", e)
+    
+    if SYNC:    
+        try:
+            synced_commands = await bot.tree.sync()
+            print(f"Synced {len(synced_commands)} commands.")
+        except Exception as e:
+            print("An error with syncing application commands occurred", e)
 
 async def load():
     for filename in os.listdir('./cogs'):

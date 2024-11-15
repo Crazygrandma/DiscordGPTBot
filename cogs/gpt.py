@@ -2,7 +2,7 @@ import discord
 import requests
 import importlib
 import asyncio
-from gptManager import GPTManager
+from GPTManager import GPTManager
 import random
 from discord.ext import commands
 from discord import app_commands
@@ -42,32 +42,31 @@ class GPT(commands.Cog): # create a class for our cog that inherits from command
         self.connections = {}
         self.users = {}
         config.read('config.ini',encoding='utf-8')
-        gpt = config['GPT']
-        GPT_MODEL = gpt['MODEL']
-        SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
-        self.mygpt = GPTManager(GPT_MODEL,SYSTEM_PROMPT)
         self.username = ''
+        self.mygpt = None
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print(f"{self.bot.user} is ready now!")
-        await self.bot.change_presence(activity=discord.Game("GPT ready!"))
+        print("GPT cog is ready")
+        # await self.bot.change_presence(activity=discord.Game("GPT ready!"))
 
-    @commands.command()
-    async def join(self,ctx):  # If you're using commands.Bot, this will also work.
-        user = ctx.author.id
-        voice = ctx.author.voice
+    @app_commands.command(name="moin", description="Join the current voice channel")
+    async def join(self,interaction:discord.Interaction):  # If you're using commands.Bot, this will also work.
+        user = interaction.user.id
+        voice = interaction.user.voice
         if not voice:
-            await ctx.send(f"<@{user}>! Bruh wo soll ich denn rein?")
+            await interaction.response.send_message(f"<@{user}>! Bruh wo soll ich denn rein?")
         vc = await voice.channel.connect()  # Connect to the voice channel the author is in.
+        await interaction.response.send_message(f"<@{user}>! Moin")
         source = FFmpegPCMAudio(f"./sounds/hellothere.wav")
         vc.play(source)
-        self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
+        self.connections.update({interaction.guild.id: vc})  # Updating the cache with the guild and channel.
     
-    @commands.command()
-    async def leave(self,ctx):  
-        if ctx.guild.id in self.connections:  # Check if the guild is in the cache.
-            vc = self.connections[ctx.guild.id]
+    @app_commands.command(name="nööö", description="Leave the current voice channel")
+    async def leave(self,interaction:discord.Interaction):
+        if interaction.guild.id in self.connections:  # Check if the guild is in the cache.
+            vc = self.connections[interaction.guild.id]
+            await interaction.response.send_message(f"<@{interaction.user.id}>! Ok")
             await vc.disconnect()
 
     @commands.command()
@@ -87,51 +86,109 @@ class GPT(commands.Cog): # create a class for our cog that inherits from command
             vc.play(source)
             await vc.disconnect()
 
-
-    @commands.command()
-    async def askgpt(self,ctx,arg):
-        user = ctx.author.id
-        elevenlabs = config['LABS']
-        useElevenLabs = elevenlabs['enabled']
-        
-        context = self.mygpt.getContext()
-        await ctx.send(f"<@{user}> Frage GPT: {arg}")
-        response = self.mygpt.getResponse(prompt=arg)
-        print(response)
-            
-
-
-    @app_commands.command(name="gpt4all", description="Ask a local gpt model a question")
-    async def gpt(self, interaction:discord.Interaction, prompt: str):
+    @app_commands.command(name="gpt", description="Ask a local gpt model a question and keep the context")
+    async def gpt(self, interaction:discord.Interaction, prompt: str, temp:float=0.7, max_tokens:int=256,repeat_last_n:int=1):
         config.read('config.ini',encoding='utf-8')
         gpt = config['GPT']
         elevenlabs = config['LABS']
         GPT_MODEL = gpt['MODEL']
         SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
         useElevenLabs = elevenlabs['enabled']
-        user = interaction.user.mention
+        user = interaction.user.id
+
+        await interaction.response.send_message(f"<@{user}> Frage MoviemakerBot: {prompt}")
         
-        await interaction.channel.send(f"{user} Frage GPT: {prompt}", ephemeral=True)
+        # Load once
+        if self.mygpt is None:
+            gptmodule = importlib.import_module('GPTManager','.')
+            self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
+            self.mygpt.set_system_prompt(SYSTEM_PROMPT)
+        
+        # Exit message to unload
+        if prompt == "exit":
+            if self.mygpt is not None:
+                del(self.mygpt)
+                print("Free memory gpt")
+            else:
+                print("Gpt not loaded AAAAAAAAAAAA")
+        else:
+            # Gen response with context
+            response = self.mygpt.getResponseWithContext(prompt, temp, max_tokens, repeat_last_n)
+            print(response)
+            # if useElevenLabs == 'Jawoll':
+            #     await self.ttsElevenlabs(interaction.guild.id,response)
+            # else:
+            await self.ttsgTTS(interaction.guild.id,response)    
+
+    @app_commands.command(name="gptold", description="Ask a local gpt model a question")
+    async def gptold(self, interaction:discord.Interaction, prompt: str):
+        config.read('config.ini',encoding='utf-8')
+        gpt = config['GPT']
+        elevenlabs = config['LABS']
+        GPT_MODEL = gpt['MODEL']
+        SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
+        useElevenLabs = elevenlabs['enabled']
+        user = interaction.user.id
+
+        await interaction.response.send_message(f"<@{user}> Frage GPT: {prompt}")
         
         gptmodule = importlib.import_module('GPTManager','.')
         self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
         context = self.mygpt.getContext()
-        
-        await interaction.channel.send("GPT ready", ephemeral=True)
-        
+
         with context:
             response = self.mygpt.getResponse(prompt=prompt)
-            print(response)
-            if useElevenLabs == 'Jawoll':
-                await interaction.channel.send(f"{user} Generiere Audio mit ElevenLabs! Teuer AAAA")
+            if useElevenLabs == 'Nein':
+                # await ctx.send(f"<@{user}> Generiere Audio mit gTTS!")
+                await self.ttsgTTS(interaction.guild.id,response)    
+            elif useElevenLabs == 'Jawoll':
+                # await ctx.send(f"<@{user}> Generiere Audio mit ElevenLabs!")
                 # Text to speech with ElevenLabs
                 await self.ttsElevenlabs(interaction.guild.id,response)
-                await interaction.channel.send(f"{user} {response}")
-            else:
-                await interaction.channel.send(f"{user} Generiere Audio mit gTTS!")
-                await self.ttsgTTS(interaction.guild.id,response)
-                await interaction.channel.send(f"{user} {response}")
+        if self.mygpt is not None:
+            del(self.mygpt)
+            print("Free memory gpt")
+        else:
+            print("Gpt not loaded")
 
+    @commands.command()
+    async def stoprandom(self,ctx):
+        global RUN_PLAY_RANDOM
+        RUN_PLAY_RANDOM = False
+
+    @commands.command()
+    async def enablerandom(self,ctx):
+        global RUN_PLAY_RANDOM
+        RUN_PLAY_RANDOM = True
+
+    @app_commands.command(name="randomplay", description="Play a random sound at a random time")
+    async def randomplay(self, interaction:discord.Interaction, mintime: int=10, maxtime: int=30):
+        user = interaction.user.id
+        voice = interaction.user.voice
+        if not voice:
+            await interaction.response.send_message(f"<@{user}>! Bruh wo soll ich denn rein?")
+        else:
+            try:
+                await interaction.response.send_message(f"<@{user}>! Viel Spaß")
+                vc = await voice.channel.connect()  # Connect to the voice channel the author is in.
+                self.connections.update({interaction.guild.id: vc})  # Updating the cache with the guild and channel.
+            except:
+                vc = self.connections[interaction.guild.id]
+            RUN_PLAY_RANDOM
+            while RUN_PLAY_RANDOM:
+                sound = self.pickRandom()
+                randWait = random.randint(int(mintime),int(maxtime))
+                await asyncio.sleep(randWait)
+                source = FFmpegPCMAudio(sound)
+                length = mutagen_length(sound)
+                print("waiting ",length)
+                vc.play(source)
+                await asyncio.sleep(int(length))
+
+    def pickRandom(self):
+        soundList = glob.glob('./sounds/*.wav')
+        sound = random.choice(soundList)
+        return sound
 
     async def ttsgTTS(self,id,response):
         vc = self.connections[id]

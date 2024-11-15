@@ -5,7 +5,7 @@ from discord import app_commands
 
 config = configparser.ConfigParser()
 
-class Initilize(commands.Cog): # create a class for our cog that inherits from commands.Cog
+class Initialize(commands.Cog): # create a class for our cog that inherits from commands.Cog
     # this class is used to create a cog, which is a module that can be added to the bot
 
     def __init__(self, bot): # this is a special method that is called when the cog is loaded
@@ -13,7 +13,7 @@ class Initilize(commands.Cog): # create a class for our cog that inherits from c
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print(f"{self.bot.user} is ready now!")
+        print(f"Init Cog is ready now!")
 
     @commands.command()
     async def reload(self,ctx):
@@ -67,5 +67,6 @@ class Initilize(commands.Cog): # create a class for our cog that inherits from c
             config.write(configfile)
 
         
-def setup(bot): # this is called by Pycord to setup the cog
-    bot.add_cog(Initilize(bot)) # add the cog to the bot
+async def setup(bot): # this is called by Pycord to setup the cog
+    await bot.add_cog(Initialize(bot)) # add the cog to the bot
+ 

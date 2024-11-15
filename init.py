@@ -1,6 +1,7 @@
 import discord
 import configparser
 from discord.ext import commands
+from discord import app_commands
 
 config = configparser.ConfigParser()
 
@@ -48,13 +49,6 @@ class Initilize(commands.Cog): # create a class for our cog that inherits from c
     async def prompt(self,ctx,arg):
         config.read('config.ini')
         config.set('GPT','SYSTEM_PROMPT',str(arg))
-        with open('config.ini', 'w') as configfile:
-            config.write(configfile)
-
-    @commands.command()
-    async def labs(self,ctx,arg):
-        config.read('config.ini')
-        config.set('LABS','enabled',str(arg))
         with open('config.ini', 'w') as configfile:
             config.write(configfile)
 

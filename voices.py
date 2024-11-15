@@ -81,11 +81,6 @@ class Voices(commands.Cog): # create a class for our cog that inherits from comm
             vc.play(source)
 
     @commands.command()
-    async def stopdialog(self,ctx):
-        global RUN_DIALOG
-        RUN_DIALOG = False
-
-    @commands.command()
     async def stoprandom(self,ctx):
         global RUN_PLAY_RANDOM
         RUN_PLAY_RANDOM = False
@@ -95,96 +90,60 @@ class Voices(commands.Cog): # create a class for our cog that inherits from comm
         global RUN_PLAY_RANDOM
         RUN_PLAY_RANDOM = True
 
-    @commands.command()
-    async def reloadgpt(self,ctx):
-        if self.mygpt is not None:
-            del(self.mygpt)
-            await ctx.send("Free memory gpt")
-        else:
-            await ctx.send("Gpt not loaded")
 
-    @commands.command()
-    async def askgpt(self,ctx,arg):
-        config.read('config.ini',encoding='utf-8')
-        gpt = config['GPT']
-        elevenlabs = config['LABS']
-        GPT_MODEL = gpt['MODEL']
-        SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
-        useElevenLabs = elevenlabs['enabled']
-        user = ctx.author.id
 
-        gptmodule = importlib.import_module('GPTManager','.')
-        self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
-        context = self.mygpt.getContext()
+    # @commands.command()
+    # async def dialog(self,ctx,arg):
+    #     config.read('config.ini',encoding='utf-8')
+    #     gpt = config['GPT']
+    #     elevenlabs = config['LABS']
+    #     GPT_MODEL = gpt['MODEL']
+    #     SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
+    #     useElevenLabs = elevenlabs['enabled']
+    #     user = ctx.author.id
+    #     # await ctx.send(f"<@{user}> Starte Dialogsession")
+    #     result = await self.getDialog(ctx,arg)
+    #     memory_before_gpt:float = get_memory_usage()
 
-        with context:
-            await ctx.send(f"<@{user}> Frage GPT: {arg}")
-            response = self.mygpt.getResponse(prompt=arg)
-            if useElevenLabs == 'Nein':
-                # await ctx.send(f"<@{user}> Generiere Audio mit gTTS!")
-                await self.ttsgTTS(ctx,response)    
-            elif useElevenLabs == 'Jawoll':
-                await ctx.send(f"<@{user}> Generiere Audio mit ElevenLabs!")
-                # Text to speech with ElevenLabs
-                await self.ttsElevenlabs(ctx,response)
-        if self.mygpt is not None:
-            del(self.mygpt)
-            await ctx.send("Free memory gpt")
-        else:
-            await ctx.send("Gpt not loaded")
+    #     gptmodule = importlib.import_module('GPTManager','.')
+    #     self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
+    #     context = self.mygpt.getContext()
 
-    @commands.command()
-    async def dialog(self,ctx,arg):
-        config.read('config.ini',encoding='utf-8')
-        gpt = config['GPT']
-        elevenlabs = config['LABS']
-        GPT_MODEL = gpt['MODEL']
-        SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
-        useElevenLabs = elevenlabs['enabled']
-        user = ctx.author.id
-        # await ctx.send(f"<@{user}> Starte Dialogsession")
-        result = await self.getDialog(ctx,arg)
-        memory_before_gpt:float = get_memory_usage()
+    #     memory_after_gpt:float = get_memory_usage()
+    #     mem_diff = memory_after_gpt - memory_before_gpt
 
-        gptmodule = importlib.import_module('GPTManager','.')
-        self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
-        context = self.mygpt.getContext()
-
-        memory_after_gpt:float = get_memory_usage()
-        mem_diff = memory_after_gpt - memory_before_gpt
-
-        print(f"After gpt import: {mem_diff:.2f} MB")
-        with context:
-            response = self.mygpt.getResponse(prompt=result)
-            memory_after_response:float = get_memory_usage()
-            mem_diff = memory_after_response - memory_before_gpt
-            print(f"After response: {mem_diff:.2f} MB")
-            if useElevenLabs == 'Nein':
-                # await ctx.send(f"<@{user}> Generiere Audio mit gTTS!")
-                await self.ttsgTTS(ctx,response)    
-            elif useElevenLabs == 'Jawoll':
-                await ctx.send(f"<@{user}> Generiere Audio mit ElevenLabs!")
-                # Text to speech with ElevenLabs
-                await self.ttsElevenlabs(ctx,response)
-            global RUN_DIALOG
-            while RUN_DIALOG:
-                result = await self.getDialog(ctx,arg)
-                response = self.mygpt.getResponse(prompt=result)
-                memory_after_response:float = get_memory_usage()
-                mem_diff = memory_after_response - memory_before_gpt
-                print(f"After response: {mem_diff:.2f} MB")
-                if useElevenLabs == 'Nein':
-                    # await ctx.send(f"<@{user}> Generiere Audio mit gTTS!")
-                    await self.ttsgTTS(ctx,response)    
-                elif useElevenLabs == 'Jawoll':
-                    # await ctx.send(f"<@{user}> Generiere Audio mit ElevenLabs!")
-                    # Text to speech with ElevenLabs
-                    await self.ttsElevenlabs(ctx,response)
-        if self.mygpt is not None:
-            del(self.mygpt)
-            await ctx.send("Free memory gpt")
-        else:
-            await ctx.send("Gpt not loaded")
+    #     print(f"After gpt import: {mem_diff:.2f} MB")
+    #     with context:
+    #         response = self.mygpt.getResponse(prompt=result)
+    #         memory_after_response:float = get_memory_usage()
+    #         mem_diff = memory_after_response - memory_before_gpt
+    #         print(f"After response: {mem_diff:.2f} MB")
+    #         if useElevenLabs == 'Nein':
+    #             # await ctx.send(f"<@{user}> Generiere Audio mit gTTS!")
+    #             await self.ttsgTTS(ctx,response)    
+    #         elif useElevenLabs == 'Jawoll':
+    #             await ctx.send(f"<@{user}> Generiere Audio mit ElevenLabs!")
+    #             # Text to speech with ElevenLabs
+    #             await self.ttsElevenlabs(ctx,response)
+    #         global RUN_DIALOG
+    #         while RUN_DIALOG:
+    #             result = await self.getDialog(ctx,arg)
+    #             response = self.mygpt.getResponse(prompt=result)
+    #             memory_after_response:float = get_memory_usage()
+    #             mem_diff = memory_after_response - memory_before_gpt
+    #             print(f"After response: {mem_diff:.2f} MB")
+    #             if useElevenLabs == 'Nein':
+    #                 # await ctx.send(f"<@{user}> Generiere Audio mit gTTS!")
+    #                 await self.ttsgTTS(ctx,response)    
+    #             elif useElevenLabs == 'Jawoll':
+    #                 # await ctx.send(f"<@{user}> Generiere Audio mit ElevenLabs!")
+    #                 # Text to speech with ElevenLabs
+    #                 await self.ttsElevenlabs(ctx,response)
+    #     if self.mygpt is not None:
+    #         del(self.mygpt)
+    #         await ctx.send("Free memory gpt")
+    #     else:
+    #         await ctx.send("Gpt not loaded")
 
     @commands.command()
     async def randomplay(self,ctx,arg1,arg2):
@@ -208,45 +167,6 @@ class Voices(commands.Cog): # create a class for our cog that inherits from comm
                 print("waiting ",length)
                 vc.play(source)
                 await asyncio.sleep(int(length))
-
-    @commands.command()
-    async def playrandom(self,ctx):
-        user = ctx.author.id
-        voice = ctx.author.voice
-        if not voice:
-            await ctx.send(f"<@{user}>! Bruh wo soll ich denn rein?")
-        else:
-            try:
-                vc = await voice.channel.connect()  # Connect to the voice channel the author is in.
-                self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
-            except:
-                vc = self.connections[ctx.guild.id]
-
-            sound = self.pickRandom()
-            source = FFmpegPCMAudio(sound)
-            vc.play(source)
-
-    @commands.command()
-    async def soundboard(self,ctx):
-        user = ctx.author.id
-        voice = ctx.author.voice
-        if not voice:
-            await ctx.send(f"<@{user}>! Bruh wo soll ich denn rein?")
-        else:
-            try:
-                vc = await voice.channel.connect()  # Connect to the voice channel the author is in.
-                self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
-            except:
-                vc = self.connections[ctx.guild.id]
-            RUN_PLAY_RANDOM
-            while RUN_PLAY_RANDOM:
-                sound = input("Type a sound:")
-                source = FFmpegPCMAudio(f"./sounds/{sound}.wav")
-                length = mutagen_length(f"./sounds/{sound}.wav")
-                print("waiting ",length)
-                vc.play(source)
-                await asyncio.sleep(int(length))
-
 
     def pickRandom(self):
         soundList = glob.glob('./sounds/*.wav')
@@ -344,5 +264,5 @@ class Voices(commands.Cog): # create a class for our cog that inherits from comm
         response = requests.request("GET", f"{DISCORD_USERAPI}{id}")
         return response.json()["username"]
 
-def setup(bot): # this is called by Pycord to setup the cog
-    bot.add_cog(Voices(bot)) # add the cog to the bot
+async def setup(bot): # this is called by Pycord to setup the coga
+    await bot.add_cog(Voices(bot)) # add the cog to the bot

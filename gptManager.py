@@ -6,19 +6,19 @@ class GPTManager:
     def __init__(self,model,system_prompt='',device='gpu'):
         self.sytem_prompt = system_prompt
         self.model = f'c:/Users/henry/AppData/Local/nomic.ai/GPT4All/{model}'
-        self.gpt =GPT4All(model_name=self.model,device=device, allow_download=False)
+        self.gpt = GPT4All(model_name=self.model,device=device, allow_download=False)
         self.context = self.gpt.chat_session(system_prompt=system_prompt)
             
     def getContext(self):
         return self.context
     
-    def set_system_prompt(self,system_prompt):
-        self.gpt.set_system_prompt(system_prompt)
+    # def set_system_prompt(self,system_prompt):
+    #     self.gpt.set_system_prompt(system_prompt)
         
-    def getResponseWithContext(self,prompt,temp=0.7,max_tokens=256,repeat_last_n=64):
-        response = self.gpt.generateWithContext(prompt=prompt,n_batch=1,temp=temp,max_tokens=max_tokens,repeat_last_n=repeat_last_n,repeat_penalty=1.5)
-        print("Context Length ", len(self.gpt.current_chat_session))
-        return response
+    # def getResponseWithContext(self,prompt,temp=0.7,max_tokens=256,repeat_last_n=64):
+    #     response = self.gpt.generateWithContext(prompt=prompt,n_batch=1,temp=temp,max_tokens=max_tokens,repeat_last_n=repeat_last_n,repeat_penalty=1.5)
+    #     print("Context Length ", len(self.gpt.current_chat_session))
+    #     return response
 
     def getResponse(self,prompt):
         response = self.gpt.generate(prompt=prompt,n_batch=1)
@@ -32,11 +32,10 @@ def main():
     # model = "mistral-7b-openorca.Q4_0.gguf"
     # model = 'c:/Users/henry/AppData/Local/nomic.ai/GPT4All/mistral-7b-openorca.Q4_0.gguf'
     mygpt = GPTManager(model,system_prompt)
-    
-    mygpt.set_system_prompt(system_prompt)
-    
-    response = mygpt.getResponseWithContext(prompt='Hey wie gehts dir denn so?')
-    print(response)
+    context = mygpt.getContext()
+    with context:
+        response = mygpt.getResponse(prompt='Hey wie gehts dir denn so?')
+        print(response)
     # response = mygpt.getResponseWithContext(prompt='Was hast du gesagt?')
     # print(response)
     # print(mygpt.gpt.current_chat_session)

@@ -1,42 +1,42 @@
 import discord
-# import logging
-from discord.ext import commands
 import os
-import asyncio
 from dotenv import load_dotenv
-
-# handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-
-
-
 load_dotenv()
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents) 
 
-SYNC = False
+DISCORD_API_TOKEN = os.getenv('DISCORD_TOKEN')
+
+intents = discord.Intents.all()
+
+status = discord.Status.dnd
+activity = discord.Activity(type=discord.ActivityType.watching, name="MoviemakerMOOIN")
+
+bot = discord.Bot(
+    intents=intents,
+    debug_guilds=[692503362247327889,788437552331882517],
+    status=status,
+    activity=activity
+)
 
 @bot.event
 async def on_ready():
-    print("Bot ready")
-    await bot.change_presence(activity=discord.Game("GOMMEMODE"))
+    print(f"{bot.user} is ready")
+
+@bot.event
+async def on_application_command_error(ctx,error):
+    await ctx.respond(f"Es ist ein Fehler aufgetreten ```{error}```")
+    raise error
+
+
+@bot.slash_command(description="Bot herunterfahren")
+async def shutdown(ctx):
+    await ctx.respond("Shutting down...")
+    await bot.close()
+
+
+if __name__ == '__main__':
+    for filename in os.listdir('cogs'):
+        if filename.endswith(".py"):  
+            bot.load_extension(f"cogs.{filename[:-3]}")
     
-    if SYNC:    
-        try:
-            synced_commands = await bot.tree.sync()
-            print(f"Synced {len(synced_commands)} commands.")
-        except Exception as e:
-            print("An error with syncing application commands occurred", e)
-
-async def load():
-    for filename in os.listdir('./cogs'):
-        if filename.endswith(".py"):
-            await bot.load_extension(f"cogs.{filename[:-3]}")
-
-async def main():
-    await load()
-    await bot.start(DISCORD_TOKEN) 
-
-
-if __name__=='__main__':
-    asyncio.run(main())
+    bot.run(DISCORD_API_TOKEN)
+    

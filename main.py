@@ -27,6 +27,8 @@ async def on_application_command_error(ctx,error):
     raise error
 
 
+
+
 @bot.slash_command(description="Reload extensions")
 async def reload(ctx,arg:str):
     try:

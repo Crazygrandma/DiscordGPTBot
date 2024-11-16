@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from mutagen.wave import WAVE
 from gtts import gTTS
 
+RUN_PLAY_RANDOM = False
 DIALOG_RUNNING = True
 ELEVENLABS_TOKEN = os.getenv('ELEVENLABS_TOKEN')
 
@@ -41,6 +42,28 @@ class GPT(commands.Cog):
 
 
 
+    @slash_command(description="Play a random sound at a random time")
+    async def randomplay(self, ctx, mintime: int=10, maxtime: int=30):
+        user = ctx.user.id
+        global RUN_PLAY_RANDOM
+        RUN_PLAY_RANDOM = not RUN_PLAY_RANDOM
+        if self.vc:
+            await ctx.respond(f"<@{user}>! Viel Spaß")
+            while RUN_PLAY_RANDOM:
+                sound = self.pickRandom()
+                randWait = random.randint(int(mintime),int(maxtime))
+                print(f"Waiting {randWait} seconds")
+                await asyncio.sleep(randWait)
+                source = FFmpegPCMAudio(sound)
+                length = mutagen_length(sound)
+                self.vc.play(source)
+                await asyncio.sleep(int(length))
+
+    def pickRandom(self):
+        soundList = glob.glob('./sounds/*.wav')
+        sound = random.choice(soundList)
+        return sound
+
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,member,before,after):
@@ -55,7 +78,7 @@ class GPT(commands.Cog):
         
         # user joins channel
         if before.channel == None and after.channel is not None:
-            print("User joined")
+            print(f"User joined {after.channel}")
             soundpath = ""
             if member.name == "moviemakerhd":
                 soundpath = "./sounds/moviemakermoin.wav"
@@ -67,8 +90,17 @@ class GPT(commands.Cog):
                 soundpath = "./sounds/JorisYT.wav" 
             length = mutagen_length(soundpath)
             source = FFmpegPCMAudio(source=soundpath)
+            # Wait for user to connect to voice
+            await asyncio.sleep(0.5)
             self.vc.play(source)
             await asyncio.sleep(int(length))
+        elif before.channel is not None and after.channel is None:
+            print(f"User left from channel {before.channel}")
+            if self.vc:
+                if member.name == "moviemakerhd":
+                    await asyncio.sleep(1)
+                    await self.vc.disconnect()
+                    self.vc = None
 
     @slash_command(description="Stelle Fragen an ein lokales LLM")
     async def askgpt(self, ctx):

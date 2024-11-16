@@ -18,17 +18,21 @@ class GPTManager:
 
 
 def main():
-    system_prompt = '''You can only answer with yelling and shouting like AAAAAAAAAAA'''
-    model = "mistral-7b-instruct-v0.1.Q4_0.gguf"
+    system_prompt = ''''''
+    # model = "mistral-7b-instruct-v0.1.Q4_0.gguf"
     # model = "em_german_mistral_v01.Q4_0.gguf"
+    model = "em_german_leo_mistral.Q4_0.gguf"
     # model = "em_german_7b_v01.Q4_K_M.gguf"
     # model = "mistral-7b-openorca.Q4_0.gguf"
     # model = 'c:/Users/henry/AppData/Local/nomic.ai/GPT4All/mistral-7b-openorca.Q4_0.gguf'
     mygpt = GPTManager(model,system_prompt)
-    context = mygpt.getContext()
-    with context:
-        response = mygpt.getResponse(prompt='Hey what is the capital of Berlin?',repeat_penalty=1.2,temp=0.5,max_tokens=128)
-        print(response)
+    # context = mygpt.getContext()
+    # with context:
+    #     response = mygpt.getResponse(prompt='Hey what is the capital of Berlin?',repeat_penalty=1.2,temp=0.5,max_tokens=128)
+    #     print(response)
+    
+    # response = mygpt.getResponse("Hey wie gehts dir?")
+    # print(response)
     # response = mygpt.getResponseWithContext(prompt='Was hast du gesagt?')
     # print(response)
     # print(mygpt.gpt.current_chat_session)

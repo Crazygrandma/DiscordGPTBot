@@ -15,6 +15,9 @@ from mutagen.wave import WAVE
 from gtts import gTTS
 
 DIALOG_RUNNING = True
+ELEVENLABS_TOKEN = os.getenv('ELEVENLABS_TOKEN')
+
+CHUNK_SIZE = 1024
 config = configparser.ConfigParser()
 
 #### HELPER FUNCTIONS
@@ -67,7 +70,7 @@ class GPT(commands.Cog):
             self.vc.play(source)
             await asyncio.sleep(int(length))
 
-    @slash_command()
+    @slash_command(description="Stelle Fragen an ein lokales LLM")
     async def askgpt(self, ctx):
         
         # if not in voice conntect to it
@@ -81,6 +84,9 @@ class GPT(commands.Cog):
         elevenlabs = config['LABS']
         GPT_MODEL = gpt['MODEL']
         SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
+        maxtokens = gpt['maxtoken']
+        penalty = gpt['penalty']
+        temp = gpt['temp']
         useElevenLabs = elevenlabs['enabled']
         
         print("Loading GPT Model...")
@@ -99,23 +105,19 @@ class GPT(commands.Cog):
             while DIALOG_RUNNING:
                 answer = await self.bot.wait_for("message", check=check)
                 if answer.content == "exit":
+                    await answer.reply("Fahre GPT runter...")
                     if self.mygpt is not None:
                         del(self.mygpt)
+                        self.mygpt = None
                         print("Free memory gpt")
                     DIALOG_RUNNING = False
                     return
-                response = self.mygpt.getResponse(answer.content)
-                await self.ttsgTTS(response)  
+                response = self.mygpt.getResponse(answer.content,max_tokens=maxtokens,repeat_penalty=penalty,temp=temp)
+                if useElevenLabs == "Jawoll":
+                    await self.ttsElevenlabs(response)
+                else:
+                    await self.ttsgTTS(response)  
                 await answer.reply(response)
-                # Play gtts in voice chat
-                
-                
-    
-        if self.mygpt is not None:
-                del(self.mygpt)
-                print("Free memory gpt")
-        else:
-            print("Gpt not loaded AAAAAAAAAAAA")
             
     async def ttsgTTS(self,response):
         try:
@@ -131,6 +133,33 @@ class GPT(commands.Cog):
         self.vc.play(source)
         # Wait till finished
         await asyncio.sleep(int(length))
+        
+    async def ttsElevenlabs(self,text):
+        elevenlabs = config['LABS']
+        stability = elevenlabs['STABILITY']
+        similarity = elevenlabs['SIMILARITY']
+        voice_id = elevenlabs['VOICE_ID']
+        model_id = elevenlabs['MODEL_ID']
+        payload = {
+            "model_id": model_id,
+            "text": text,
+            "voice_settings": {
+                "stability": stability,
+                "similarity_boost": similarity
+            }
+        }
+        headers = {"Content-Type": "application/json","xi-api-key": ELEVENLABS_TOKEN}
+
+        elevenLabsTTSAPIURL = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+
+        response = requests.request("POST", elevenLabsTTSAPIURL, json=payload, headers=headers)
+
+        with open('response.mp3', 'wb') as f:
+            for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+                if chunk:
+                    f.write(chunk)
+            source = FFmpegPCMAudio(f"./response.mp3")
+            self.vc.play(source)
         
 def setup(bot):
     bot.add_cog(GPT(bot))

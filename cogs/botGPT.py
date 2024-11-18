@@ -13,7 +13,10 @@ import configparser
 from dotenv import load_dotenv
 from mutagen.wave import WAVE
 from gtts import gTTS
+import sys
 
+
+JOIN_ON_VOICE = False
 RUN_PLAY_RANDOM = False
 DIALOG_RUNNING = True
 ELEVENLABS_TOKEN = os.getenv('ELEVENLABS_TOKEN')
@@ -40,13 +43,17 @@ class GPT(commands.Cog):
         self.mygpt = None
         self.vc = None
 
-
+    @slash_command(description="Disable random sounds")
+    async def stoprandom(self,ctx):
+        global RUN_PLAY_RANDOM
+        RUN_PLAY_RANDOM = False
+        await ctx.respond(f"<@{ctx.user.id}>! Disable Randomsounds")
 
     @slash_command(description="Play a random sound at a random time")
     async def randomplay(self, ctx, mintime: int=10, maxtime: int=30):
         user = ctx.user.id
         global RUN_PLAY_RANDOM
-        RUN_PLAY_RANDOM = not RUN_PLAY_RANDOM
+        RUN_PLAY_RANDOM = True
         if self.vc:
             await ctx.respond(f"<@{user}>! Viel Spaß")
             while RUN_PLAY_RANDOM:
@@ -56,51 +63,83 @@ class GPT(commands.Cog):
                 await asyncio.sleep(randWait)
                 source = FFmpegPCMAudio(sound)
                 length = mutagen_length(sound)
-                self.vc.play(source)
+                if self.vc: 
+                    self.vc.play(source)
                 await asyncio.sleep(int(length))
 
     def pickRandom(self):
-        soundList = glob.glob('./sounds/*.wav')
+        soundList = glob.glob('./sounds/soundboard/*.wav')
         sound = random.choice(soundList)
         return sound
 
-
-    @commands.Cog.listener()
-    async def on_voice_state_update(self,member,before,after):
-        if member.bot:
-            return
+    # @commands.Cog.listener()
+    # async def on_voice_state_update(self,member,before,after):
+    #     if member.bot:
+    #         return
         
-        voice = member.voice 
+    #     voice = member.voice 
         
-        if self.vc is None and voice is not None:     
-            self.vc = await voice.channel.connect()
+    #     if self.vc is None and voice is not None and JOIN_ON_VOICE:     
+    #         self.vc = await voice.channel.connect()
             
         
-        # user joins channel
-        if before.channel == None and after.channel is not None:
-            print(f"User joined {after.channel}")
-            soundpath = ""
-            if member.name == "moviemakerhd":
-                soundpath = "./sounds/moviemakermoin.wav"
-            elif member.name == "paulhfr":
-                soundpath = "./sounds/JJJPH.wav"
-            elif member.name == "pauldermensch":
-                soundpath = "./sounds/dermensch.wav"
-            else:
-                soundpath = "./sounds/JorisYT.wav" 
-            length = mutagen_length(soundpath)
-            source = FFmpegPCMAudio(source=soundpath)
-            # Wait for user to connect to voice
-            await asyncio.sleep(0.5)
+    #     # user joins channel
+    #     if before.channel == None and after.channel is not None:
+    #         print(f"User joined {after.channel}")
+    #         soundpath = ""
+    #         if member.name == "moviemakerhd":
+    #             soundpath = "./sounds/other/moviemakermoin.wav"
+    #         elif member.name == "paulhfr":
+    #             soundpath = "./sounds/other/JJJPH.wav"
+    #         elif member.name == "pauldermensch":
+    #             soundpath = "./sounds/other/dermensch.wav"
+    #         elif member.name == "weicherpottwal":
+    #             soundpath = "./sounds/other/nefton.wav"
+    #         else:
+    #             soundpath = "./sounds/JorisYT.wav" 
+    #         length = mutagen_length(soundpath)
+    #         source = FFmpegPCMAudio(source=soundpath)
+    #         # Wait for user to connect to voice
+    #         await asyncio.sleep(0.5)
+    #         self.vc.play(source)
+    #         await asyncio.sleep(int(length))
+    #     elif before.channel is not None and after.channel is None:
+    #         print(f"User left from channel {before.channel}")
+    #         # if self.vc:
+    #         #     if member.name == "moviemakerhd":
+    #         #         soundpath = "./sounds/JorisYT.wav" 
+    #         #         length = mutagen_length(soundpath)
+    #         #         source = FFmpegPCMAudio(source=soundpath)
+    #         #         self.vc.play(source)
+    #         #         await asyncio.sleep(int(length))
+    #         #         await asyncio.sleep(1)
+    #         #         await self.vc.disconnect()
+    #         #         self.vc = None
+
+    @slash_command()
+    async def join(self,ctx):
+        user = ctx.user.id
+        voice = ctx.user.voice
+        if not self.bot.voice_clients:
+            return
+        self.vc = await voice.channel.connect()  # Connect to the voice channel the author is in.
+        await ctx.respond(f"<@{user}>! Moin")
+
+    @slash_command()
+    async def leave(self,ctx):
+        if self.bot.voice_clients:
+            await ctx.respond(f"<@{ctx.user.id}>! Ok")
+            await ctx.user.voice.disconnect()
+
+    @slash_command(description="Play a sound")
+    async def play(self,ctx,arg:str):
+        await ctx.respond("Play sound.")
+        source = FFmpegPCMAudio(f"./sounds/soundboard/{arg}.wav")
+        length = mutagen_length(source)
+        if self.vc: 
             self.vc.play(source)
-            await asyncio.sleep(int(length))
-        elif before.channel is not None and after.channel is None:
-            print(f"User left from channel {before.channel}")
-            if self.vc:
-                if member.name == "moviemakerhd":
-                    await asyncio.sleep(1)
-                    await self.vc.disconnect()
-                    self.vc = None
+        await asyncio.sleep(int(length))
+        
 
     @slash_command(description="Stelle Fragen an ein lokales LLM")
     async def askgpt(self, ctx):
@@ -123,10 +162,14 @@ class GPT(commands.Cog):
         
         print("Loading GPT Model...")
         # Load once
-        if self.mygpt is None:
-            gptmodule = importlib.import_module('gptManager','.')
-            self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
+        # Unload the module if already imported
+        if 'gptManager' in sys.modules:
+            print("Found module deleting it")
+            del sys.modules['gptManager']
         
+        print("(Re)loading module")
+        gptmodule = importlib.import_module('gptManager','.')
+        self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
         print("GPT Model loaded")
         def check(message):
             return message.author == ctx.author
@@ -134,6 +177,7 @@ class GPT(commands.Cog):
         await ctx.respond("Was möchtest du fragen?")
         with self.mygpt.getContext():
             global DIALOG_RUNNING
+            DIALOG_RUNNING = True
             while DIALOG_RUNNING:
                 answer = await self.bot.wait_for("message", check=check)
                 if answer.content == "exit":
@@ -141,10 +185,11 @@ class GPT(commands.Cog):
                     if self.mygpt is not None:
                         del(self.mygpt)
                         self.mygpt = None
-                        print("Free memory gpt")
+                        print("Free gpt memory")
                     DIALOG_RUNNING = False
                     return
-                response = self.mygpt.getResponse(answer.content,max_tokens=maxtokens,repeat_penalty=penalty,temp=temp)
+                response = self.mygpt.getResponse(answer.content,max_tokens=int(maxtokens),repeat_penalty=float(penalty),temp=float(temp))
+                print("Got a response")
                 if useElevenLabs == "Jawoll":
                     await self.ttsElevenlabs(response)
                 else:

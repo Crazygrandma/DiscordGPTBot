@@ -13,7 +13,7 @@ class GPTManager:
         return self.context
 
     def getResponse(self,prompt,max_tokens=128,repeat_penalty=1.6,temp=0.9):
-        response = self.gpt.generate(prompt=prompt,n_batch=1,max_tokens=128,repeat_penalty=1.6,temp=0.9,repeat_last_n=1)
+        response = self.gpt.generate(prompt=prompt,n_batch=1,max_tokens=max_tokens,repeat_penalty=repeat_penalty,temp=temp,repeat_last_n=1)
         return response
 
 

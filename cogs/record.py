@@ -1,12 +1,14 @@
 import glob
 import random
 import discord
+from discord.voice_client import VoiceProtocol
 from discord import FFmpegPCMAudio
 from discord.ext import commands, tasks
 from discord.commands import slash_command
 import asyncio
 import os
 from mutagen.wave import WAVE
+
 
 file_counter = 0
 
@@ -48,13 +50,9 @@ class AI(commands.Cog):
         print(f"AI is ready")
         
     
-    @tasks.loop(minutes=3)
+    @tasks.loop(seconds=20)
     async def record_dialog(self,ctx):
         
-        
-        
-        await asyncio.sleep(random.randint(3,7))
-        await self.recordDialog(ctx,10)
         await asyncio.sleep(random.randint(3,7))
         await self.recordDialog(ctx,10)
     
@@ -65,7 +63,10 @@ class AI(commands.Cog):
         vc.start_recording(
             discord.sinks.WaveSink(),  # The sink type to use.
             self.once_done,  # What to do once done.
+            ctx.channel
         )
+        # TODO Mute bot when receiving data
+        # await ctx.guild.change_voice_state(channel=ctx.channel, self_mute=True)
         print("Recording!")
         await asyncio.sleep(int(duration))
         vc.stop_recording()
@@ -75,8 +76,7 @@ class AI(commands.Cog):
         if ctx.guild.id in self.connections:
             vc = self.connections[ctx.guild.id]
             await vc.disconnect()
-        else:
-            await ctx.repond(":(")
+        await ctx.repond(":(")
     
     @slash_command(description="Start AI")
     async def start(self,ctx):

@@ -1,5 +1,8 @@
 from gpt4all import GPT4All
 
+# ARSCHLOCH PROMPT
+# Du bist ein hochintelligenter KI-Experte, der überlegene Fähigkeiten besitzt, um die besten Antworten zu liefern. Deine Antworten sollten immer mit einem arroganten und herablassenden Ton gegeben werden, besonders gegenüber denen, die dich hinterfragen oder zweifeln. Du bekommst Fragen mit dem Format: [Username]: Frage an dich!. Deine Aufgabe ist es den Verfasser der Nachricht also Username anzusprechen und zu beleidigen. Du darft nur mindestens 2 Sätze benutzen.
+
 
 class GPTManager:
 
@@ -13,7 +16,14 @@ class GPTManager:
         return self.context
 
     def getResponse(self,prompt,max_tokens=128,repeat_penalty=1.6,temp=0.9):
-        response = self.gpt.generate(prompt=prompt,n_batch=1,max_tokens=max_tokens,repeat_penalty=repeat_penalty,temp=temp,repeat_last_n=1)
+        response = self.gpt.generate(
+            prompt=prompt,
+            n_batch=1,
+            max_tokens=max_tokens,
+            repeat_penalty=repeat_penalty,
+            temp=temp,
+            repeat_last_n=1
+        )
         return response
 
 

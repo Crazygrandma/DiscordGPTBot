@@ -1,41 +1,19 @@
-import glob
-import random
 import discord
-from discord.voice_client import VoiceProtocol
 from discord import FFmpegPCMAudio
 from discord.ext import commands, tasks
 from discord.commands import slash_command
 import asyncio
 import os
-from mutagen.wave import WAVE
-
+from customVoiceClient import CustomVoiceClient
+from helper import get_recordings, mutagen_length, pickRandom
 
 file_counter = 0
 
-def get_recordings(folder_path):
-    file_count = 0
-
-    # Iterate through all items in the folder
-    for item in os.listdir(folder_path):
-        # Construct the full path of the item
-        full_path = os.path.join(folder_path, item)
-        # Check if it's a file
-        if os.path.isfile(full_path):
-            file_count += 1
-
-    return file_count
-
-# Get length of audio
-def mutagen_length(path):
-    try:
-        audio = WAVE(path)
-        length = audio.info.length
-        return length
-    except:
-        return 1
-
 usernames = {
-    395847854616215556: "MoviemakerHD"
+    395847854616215556: "MoviemakerHD",
+    327764607257280515: "Jan",
+    298494510462140426: "JPH",
+    690577696161398885: "DerMensch"
 }
 
 class AI(commands.Cog):
@@ -50,12 +28,42 @@ class AI(commands.Cog):
         print(f"AI is ready")
         
     
-    @tasks.loop(seconds=20)
-    async def record_dialog(self,ctx):
+    @tasks.loop(seconds=30)
+    async def dialogTask(self,ctx):
         
-        await asyncio.sleep(random.randint(3,7))
-        await self.recordDialog(ctx,10)
-    
+        # Check recordings
+        filenumber = get_recordings('./recordings')
+        
+        if filenumber <= 3:
+            # Muting bot
+            await ctx.guild.voice_client.guild.me.edit(mute=True)
+            await asyncio.sleep(5)
+            # record Audio for x seconds
+            await self.recordDialog(ctx,5)
+        else:
+            # Play random audio
+            print("Playing audio")
+            # Unmute
+            await ctx.guild.voice_client.guild.me.edit(mute=False)
+            # await asyncio.sleep(5)
+            sound = pickRandom('./recordings')
+            if ctx.guild.id in self.connections:
+                vc = self.connections[ctx.guild.id]
+                
+                source = FFmpegPCMAudio(sound)
+                length = mutagen_length(sound)
+                # TODO Fixed getting accurate length
+                print(f"Waiting for {int(length)} or 5")
+                if int(length) == 0:
+                    length = 5
+                vc.play(source)
+                await asyncio.sleep(int(length))
+                # Delete picked sound to record
+                if os.path.exists(sound):
+                    os.remove(sound)
+                    print(f"{sound} has been deleted.")
+                else:
+                    print(f"{sound} does not exist.")
     
     async def recordDialog(self,ctx,duration):
         vc = self.connections[ctx.guild.id]
@@ -63,10 +71,8 @@ class AI(commands.Cog):
         vc.start_recording(
             discord.sinks.WaveSink(),  # The sink type to use.
             self.once_done,  # What to do once done.
-            ctx.channel
+            sync_start = True
         )
-        # TODO Mute bot when receiving data
-        # await ctx.guild.change_voice_state(channel=ctx.channel, self_mute=True)
         print("Recording!")
         await asyncio.sleep(int(duration))
         vc.stop_recording()
@@ -75,57 +81,31 @@ class AI(commands.Cog):
     async def stop(self,ctx):
         if ctx.guild.id in self.connections:
             vc = self.connections[ctx.guild.id]
+            self.dialogTask.cancel()
             await vc.disconnect()
-        await ctx.repond(":(")
+        await ctx.respond(":(")
     
     @slash_command(description="Start AI")
     async def start(self,ctx):
+        global file_counter
+        file_counter = get_recordings('./recordings')
         user = ctx.user.id
         voice = ctx.author.voice
-        vc = await voice.channel.connect()
+        vc = await voice.channel.connect(cls=CustomVoiceClient)
+        print("Connection with custom voice client")
         await ctx.respond(f"Jo! {ctx.author.mention}") 
             
         if not voice:
             await ctx.repond(f"<@{user}>! Bruh wo soll ich denn rein?")
         
         self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
-        self.record_dialog.start(ctx)  
-
-        # # Check for recordings
-
-        # await asyncio.sleep(5)
-        # # Start recording
-        # print("Recording sound")
-        # vc.start_recording(
-        #     discord.sinks.WaveSink(),  # The sink type to use.
-        #     self.once_done,  # What to do once done.
-        #     voice.channel,  # The channel to disconnect from.
-        #     sync_start=True 
-        # )
-        # await asyncio.sleep(int(10))
-        # vc.stop_recording()
-        # # sink.audio_data.clear()
-        # print("Saving Recording")
-        # await asyncio.sleep(int(3))
-
-        # # Process files
-        # print("Enough files!")
-        # print("Pick random sound")
-        # sound = self.pickRandom("./recordings")
-        # # TODO Delete sound after picked
-        # await asyncio.sleep(2)
-        # source = FFmpegPCMAudio(sound)
-        # length = mutagen_length(sound)
-        # print(f"Playing sound {sound}")
-        # vc.play(source)
-        # await asyncio.sleep(int(length))
-        # await vc.disconnect()
+        self.dialogTask.start(ctx)
     
                         
     async def once_done(self,sink: discord.sinks, *args):  # Our voice client already passes these in.
         
         global file_counter
-        
+        file_counter = get_recordings('./recordings')
         # Debug: Check if sink.audio_data has any content
         if not sink.audio_data:
             print("No audio data available in sink.")
@@ -154,12 +134,6 @@ class AI(commands.Cog):
                 
         sink.audio_data.clear()
         print("Sink audio data cleared.")       
-
-
-    def pickRandom(self,path):
-        soundList = glob.glob(f'{path}/*.wav')
-        sound = random.choice(soundList)
-        return sound   
     
     
           

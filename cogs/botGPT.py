@@ -15,6 +15,8 @@ from mutagen.wave import WAVE
 from gtts import gTTS
 import sys
 
+from customVoiceClient import CustomVoiceClient
+
 
 JOIN_ON_VOICE = False
 RUN_PLAY_RANDOM = False
@@ -41,7 +43,7 @@ class GPT(commands.Cog):
     def __init__(self,bot) -> None:
         self.bot = bot
         self.mygpt = None
-        self.vc = None
+        self.connections = {}
 
     @slash_command(description="Disable random sounds")
     async def stoprandom(self,ctx):
@@ -119,35 +121,45 @@ class GPT(commands.Cog):
     @slash_command()
     async def join(self,ctx):
         user = ctx.user.id
-        voice = ctx.user.voice
-        if not self.bot.voice_clients:
-            return
-        self.vc = await voice.channel.connect()  # Connect to the voice channel the author is in.
-        await ctx.respond(f"<@{user}>! Moin")
+        voice = ctx.author.voice
+        vc = await voice.channel.connect(cls=CustomVoiceClient)
+        await ctx.respond(f"Jo! {ctx.author.mention}") 
+            
+        if not voice:
+            await ctx.repond(f"<@{user}>! Bruh wo soll ich denn rein?")
+        
+        self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
 
     @slash_command()
     async def leave(self,ctx):
-        if self.bot.voice_clients:
-            await ctx.respond(f"<@{ctx.user.id}>! Ok")
-            await ctx.user.voice.disconnect()
+        if ctx.guild.id in self.connections:
+            vc = self.connections[ctx.guild.id]
+            await vc.disconnect()
+        await ctx.respond(":(")
 
     @slash_command(description="Play a sound")
     async def play(self,ctx,arg:str):
         await ctx.respond("Play sound.")
         source = FFmpegPCMAudio(f"./sounds/soundboard/{arg}.wav")
         length = mutagen_length(source)
-        if self.vc: 
-            self.vc.play(source)
+        if ctx.guild.id in self.connections:
+            vc = self.connections[ctx.guild.id]
+            vc.play(source)
         await asyncio.sleep(int(length))
         
 
     @slash_command(description="Stelle Fragen an ein lokales LLM")
     async def askgpt(self, ctx):
         
-        # if not in voice conntect to it
-        if self.vc is None:
-            voice = ctx.user.voice     
-            self.vc = await voice.channel.connect()
+        user = ctx.user.id
+        voice = ctx.author.voice
+        
+        if ctx.guild.id in self.connections:
+            vc = self.connections[ctx.guild.id]
+        else:
+            vc = await voice.channel.connect(cls=CustomVoiceClient)
+            self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
+        
         
         print("Loading config")
         config.read('config.ini',encoding='utf-8')
@@ -171,15 +183,17 @@ class GPT(commands.Cog):
         gptmodule = importlib.import_module('gptManager','.')
         self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
         print("GPT Model loaded")
-        def check(message):
-            return message.author == ctx.author
         
         await ctx.respond("Was möchtest du fragen?")
         with self.mygpt.getContext():
             global DIALOG_RUNNING
             DIALOG_RUNNING = True
             while DIALOG_RUNNING:
-                answer = await self.bot.wait_for("message", check=check)
+                answer = await self.bot.wait_for("message")
+                modified_answer = f"[{answer.author.name}]: {answer.content}"
+                
+                print(modified_answer)
+                
                 if answer.content == "exit":
                     await answer.reply("Fahre GPT runter...")
                     if self.mygpt is not None:
@@ -188,13 +202,25 @@ class GPT(commands.Cog):
                         print("Free gpt memory")
                     DIALOG_RUNNING = False
                     return
-                response = self.mygpt.getResponse(answer.content,max_tokens=int(maxtokens),repeat_penalty=float(penalty),temp=float(temp))
+                response = self.mygpt.getResponse(modified_answer,max_tokens=int(maxtokens),repeat_penalty=float(penalty),temp=float(temp))
                 print("Got a response")
                 if useElevenLabs == "Jawoll":
                     await self.ttsElevenlabs(response)
                 else:
-                    await self.ttsgTTS(response)  
+                    await self.ttsgTTS(response)
+                await asyncio.sleep(1)
+                length = mutagen_length('./response.mp3')
+                source = FFmpegPCMAudio(f"./response.mp3")
+                if ctx.guild.id in self.connections:
+                    vc = self.connections[ctx.guild.id]
+                    try: 
+                        vc.play(source)
+                    except discord.ClientException as e:
+                        print("ERROR")
+                        print(e)
                 await answer.reply(response)
+                await asyncio.sleep(int(length))
+                
             
     async def ttsgTTS(self,response):
         try:
@@ -204,12 +230,6 @@ class GPT(commands.Cog):
             tts = gTTS("Bruh!",lang='de')
         tts.save('./response.mp3')
         # Wait for file to be saved
-        await asyncio.sleep(1)
-        length = mutagen_length('./response.mp3')
-        source = FFmpegPCMAudio(f"./response.mp3")
-        self.vc.play(source)
-        # Wait till finished
-        await asyncio.sleep(int(length))
         
     async def ttsElevenlabs(self,text):
         elevenlabs = config['LABS']
@@ -235,8 +255,8 @@ class GPT(commands.Cog):
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 if chunk:
                     f.write(chunk)
-            source = FFmpegPCMAudio(f"./response.mp3")
-            self.vc.play(source)
+            # source = FFmpegPCMAudio(f"./response.mp3")
+            # self.vc.play(source)
         
 def setup(bot):
     bot.add_cog(GPT(bot))

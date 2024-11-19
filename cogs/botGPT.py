@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from mutagen.wave import WAVE
 from gtts import gTTS
 import sys
+from helper import mutagen_length, pickRandom
 
 from customVoiceClient import CustomVoiceClient
 
@@ -26,16 +27,6 @@ ELEVENLABS_TOKEN = os.getenv('ELEVENLABS_TOKEN')
 CHUNK_SIZE = 1024
 config = configparser.ConfigParser()
 
-#### HELPER FUNCTIONS
-
-# Get length of audio
-def mutagen_length(path):
-    try:
-        audio = WAVE(path)
-        length = audio.info.length
-        return length
-    except:
-        return 1
 
 # BOT COG CLASS
 class GPT(commands.Cog):
@@ -45,45 +36,10 @@ class GPT(commands.Cog):
         self.mygpt = None
         self.connections = {}
 
-    @slash_command(description="Disable random sounds")
-    async def stoprandom(self,ctx):
-        global RUN_PLAY_RANDOM
-        RUN_PLAY_RANDOM = False
-        await ctx.respond(f"<@{ctx.user.id}>! Disable Randomsounds")
-
-    @slash_command(description="Play a random sound at a random time")
-    async def randomplay(self, ctx, mintime: int=10, maxtime: int=30):
-        user = ctx.user.id
-        global RUN_PLAY_RANDOM
-        RUN_PLAY_RANDOM = True
-        if self.vc:
-            await ctx.respond(f"<@{user}>! Viel Spaß")
-            while RUN_PLAY_RANDOM:
-                sound = self.pickRandom()
-                randWait = random.randint(int(mintime),int(maxtime))
-                print(f"Waiting {randWait} seconds")
-                await asyncio.sleep(randWait)
-                source = FFmpegPCMAudio(sound)
-                length = mutagen_length(sound)
-                if self.vc: 
-                    self.vc.play(source)
-                await asyncio.sleep(int(length))
-
-    def pickRandom(self):
-        soundList = glob.glob('./sounds/soundboard/*.wav')
-        sound = random.choice(soundList)
-        return sound
-
     # @commands.Cog.listener()
     # async def on_voice_state_update(self,member,before,after):
     #     if member.bot:
     #         return
-        
-    #     voice = member.voice 
-        
-    #     if self.vc is None and voice is not None and JOIN_ON_VOICE:     
-    #         self.vc = await voice.channel.connect()
-            
         
     #     # user joins channel
     #     if before.channel == None and after.channel is not None:
@@ -103,51 +59,9 @@ class GPT(commands.Cog):
     #         source = FFmpegPCMAudio(source=soundpath)
     #         # Wait for user to connect to voice
     #         await asyncio.sleep(0.5)
-    #         self.vc.play(source)
+    #         vc.play(source)
     #         await asyncio.sleep(int(length))
-    #     elif before.channel is not None and after.channel is None:
-    #         print(f"User left from channel {before.channel}")
-    #         # if self.vc:
-    #         #     if member.name == "moviemakerhd":
-    #         #         soundpath = "./sounds/JorisYT.wav" 
-    #         #         length = mutagen_length(soundpath)
-    #         #         source = FFmpegPCMAudio(source=soundpath)
-    #         #         self.vc.play(source)
-    #         #         await asyncio.sleep(int(length))
-    #         #         await asyncio.sleep(1)
-    #         #         await self.vc.disconnect()
-    #         #         self.vc = None
-
-    @slash_command()
-    async def join(self,ctx):
-        user = ctx.user.id
-        voice = ctx.author.voice
-        vc = await voice.channel.connect(cls=CustomVoiceClient)
-        await ctx.respond(f"Jo! {ctx.author.mention}") 
-            
-        if not voice:
-            await ctx.repond(f"<@{user}>! Bruh wo soll ich denn rein?")
-        
-        self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
-
-    @slash_command()
-    async def leave(self,ctx):
-        if ctx.guild.id in self.connections:
-            vc = self.connections[ctx.guild.id]
-            await vc.disconnect()
-        await ctx.respond(":(")
-
-    @slash_command(description="Play a sound")
-    async def play(self,ctx,arg:str):
-        await ctx.respond("Play sound.")
-        source = FFmpegPCMAudio(f"./sounds/soundboard/{arg}.wav")
-        length = mutagen_length(source)
-        if ctx.guild.id in self.connections:
-            vc = self.connections[ctx.guild.id]
-            vc.play(source)
-        await asyncio.sleep(int(length))
-        
-
+    
     @slash_command(description="Stelle Fragen an ein lokales LLM")
     async def askgpt(self, ctx):
         
@@ -220,8 +134,7 @@ class GPT(commands.Cog):
                         print(e)
                 await answer.reply(response)
                 await asyncio.sleep(int(length))
-                
-            
+                    
     async def ttsgTTS(self,response):
         try:
             tts = gTTS(response,lang='de')

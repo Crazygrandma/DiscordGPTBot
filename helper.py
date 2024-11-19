@@ -1,6 +1,7 @@
 import os
 import glob
 import random
+import wave
 from mutagen.wave import WAVE
 
 def get_recordings(folder_path):
@@ -21,10 +22,22 @@ def mutagen_length(path):
     try:
         audio = WAVE(path)
         length = audio.info.length
+        
+        # if int(length) == 0:
+        #     print(f"Length 0  - Falling back to wave module.")
+        #     try:
+        #         # Fallback to Python's built-in wave module
+        #         with wave.open(path, 'rb') as wave_file:
+        #             frames = wave_file.getnframes()
+        #             rate = wave_file.getframerate()
+        #             length = frames / float(rate)
+        #     except Exception as e:
+        #         print(f"Wave module also failed with error: {e}")
+        #         return 1  # Return None to indicate failure  
+            
         return length
     except:
         return 1
-    
     
 def pickRandom(path):
         soundList = glob.glob(f'{path}/*.wav')

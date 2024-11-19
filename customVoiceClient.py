@@ -77,6 +77,7 @@ class CustomVoiceClient(VoiceClient):
         self.first_packet_timestamp: float
         while self.recording:
             ready, _, err = select.select([self.socket], [], [self.socket], 0.01)
+            # print("Getting Audio")
             if not ready:
                 if err:
                     print(f"Socket error: {err}")

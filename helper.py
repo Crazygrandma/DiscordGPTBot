@@ -1,7 +1,8 @@
 import os
 import glob
 import random
-import wave
+import discord
+from discord.ext import commands
 from mutagen.wave import WAVE
 
 def get_recordings(folder_path):
@@ -43,3 +44,15 @@ def pickRandom(path):
         soundList = glob.glob(f'{path}/*.wav')
         sound = random.choice(soundList)
         return sound   
+    
+def is_bot_connected():
+    """
+    A custom check to verify that the bot is connected to a voice channel.
+    """
+    async def predicate(ctx):
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client and voice_client.is_connected():
+            return True
+        await ctx.respond("I need to be connected to a voice channel to execute this command.")
+        return False
+    return commands.check(predicate)

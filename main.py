@@ -11,6 +11,7 @@ status = discord.Status.online
 activity = discord.Activity(type=discord.ActivityType.playing, name="GPT")
 
 bot = discord.Bot(
+    command_prefix='!',
     intents=intents,
     debug_guilds=[692503362247327889,788437552331882517],
     status=status,
@@ -25,6 +26,7 @@ async def on_ready():
 async def on_application_command_error(ctx,error):
     await ctx.respond(f"Es ist ein Fehler aufgetreten ```{error}```")
     raise error
+
 
 @bot.slash_command(description="Bot herunterfahren")
 async def shutdown(ctx):

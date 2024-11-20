@@ -6,11 +6,11 @@ import asyncio
 import os
 import random
 from customVoiceClient import CustomVoiceClient
-from helper import get_recordings, mutagen_length, pickRandom
+from helper import get_recordings, mutagen_length, pickRandom, is_bot_connected
 
 file_counter = 0
-max_files = 3
-loop_frequency = 70
+max_files = 6
+loop_frequency = 30
 recording_length = 7
 allow_silence = True
 
@@ -35,115 +35,56 @@ class AI(commands.Cog):
         
     @commands.Cog.listener()
     async def on_ready(self):
-        print(f"AI is ready")
+        print(f"Recording is ready")
         
     
     @tasks.loop(seconds=loop_frequency)
+    @is_bot_connected()
     async def dialogTask(self,ctx):
-        
+        voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         # Check recordings
         filenumber = get_recordings('./recordings')
         
         if filenumber < max_files:
             # Muting bot
-            # await ctx.guild.voice_client.guild.me.edit(mute=True)
+            await ctx.guild.voice_client.guild.me.edit(mute=True)
+            await asyncio.sleep(5)
             # record Audio for x seconds
-            await self.recordDialog(ctx,recording_length)
+            await self.recordDialog(ctx,7)
         else:
             # Play random audio
             #####print("Playing audio")
             # Unmute
-            # await ctx.guild.voice_client.guild.me.edit(mute=False)
+            await ctx.guild.voice_client.guild.me.edit(mute=False)
             # await asyncio.sleep(5)
             sound = pickRandom('./recordings')
-            if ctx.guild.id in self.connections:
-                vc = self.connections[ctx.guild.id]
-                
-                source = FFmpegPCMAudio(sound)
-                length = mutagen_length(sound)
-                # TODO Fixed getting accurate length
-                print(f"Waiting for {int(length)} or {recording_length}")
-                if int(length) == 0:
-                    length = recording_length
-                vc.play(source)
-                await asyncio.sleep(int(length))
-                # Delete picked sound to record
-                if os.path.exists(sound):
-                    os.remove(sound)
-                    ###print(f"{sound} has been deleted.")
-                else:
-                    pass
-                    ###print(f"{sound} does not exist.")
-    
-    @slash_command(description="Disable random sounds")
-    async def stoprandom(self,ctx):
-        global RUN_PLAY_RANDOM
-        RUN_PLAY_RANDOM = False
-        await ctx.respond(f"<@{ctx.user.id}>! Disable Randomsounds")
-
-    @slash_command(description="Play a random sound at a random time")
-    async def randomplay(self, ctx, mintime: int=10, maxtime: int=30):
-        user = ctx.user.id
-        global RUN_PLAY_RANDOM
-        RUN_PLAY_RANDOM = True
-        if ctx.guild.id in self.connections:
-            vc = self.connections[ctx.guild.id]
-            await ctx.respond(f"<@{user}>! Viel Spaß")
-            while RUN_PLAY_RANDOM:
-                sound = pickRandom('./sounds/soundboard')
-                randWait = random.randint(int(mintime),int(maxtime))
-                # print(f"Waiting {randWait} seconds")
-                await asyncio.sleep(randWait)
-                
-                # await ctx.guild.voice_client.guild.me.edit(mute=False)
-                source = FFmpegPCMAudio(sound)
-                length = mutagen_length(sound)
-                vc.play(source)
-                await asyncio.sleep(int(length))
-                # await ctx.guild.voice_client.guild.me.edit(mute=True)
-
-    @slash_command(description="Join the voice channel")
-    async def join(self,ctx):
-        user = ctx.user.id
-        voice = ctx.author.voice
-        vc = await voice.channel.connect(cls=CustomVoiceClient)
-        await ctx.respond(f"Jo! {ctx.author.mention}") 
-            
-        if not voice:
-            await ctx.repond(f"<@{user}>! Bruh wo soll ich denn rein?")
-        
-        self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
-
-    @slash_command(description="Leave the voice channel")
-    async def leave(self,ctx):
-        if ctx.guild.id in self.connections:
-            vc = self.connections[ctx.guild.id]
-            await vc.disconnect()
-        await ctx.respond(":(")
-
-    @slash_command(description="Play a sound")
-    async def play(self,ctx,arg:str):
-        await ctx.respond("Play sound.")
-        source = FFmpegPCMAudio(f"./sounds/soundboard/{arg}.wav")
-        length = mutagen_length(source)
-        if ctx.guild.id in self.connections:
-            vc = self.connections[ctx.guild.id]
-            vc.play(source)
-        await asyncio.sleep(int(length))
-        
+            source = FFmpegPCMAudio(sound)
+            length = mutagen_length(sound)
+            print(f"Waiting for {int(length)} or {recording_length}")
+            if int(length) == 0:
+                length = recording_length
+            voice_client.play(source)
+            await asyncio.sleep(int(length))
+            # Delete picked sound to record
+            if os.path.exists(sound):
+                os.remove(sound)
+                ###print(f"{sound} has been deleted.")
+            else:
+                pass
+                ###print(f"{sound} does not exist.")
+     
     async def recordDialog(self,ctx,duration):
-        # await ctx.guild.voice_client.guild.me.edit(mute=True)
-        await asyncio.sleep(random.randint(6,14))
-        vc = self.connections[ctx.guild.id]
-        vc.start_recording(
+        voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        voice_client.start_recording(
             discord.sinks.WaveSink(),  # The sink type to use.
             self.once_done,  # What to do once done.
-            sync_start = allow_silence
+            sync_start = True
         )
         # DEBUG 
-        print("Recording!")
+        #print("Recording!")
         await asyncio.sleep(int(duration))
-        vc.stop_recording()
+        #print("Done Recording!")
+        voice_client.stop_recording()
         # await ctx.guild.voice_client.guild.me.edit(mute=False)
     
     @slash_command(description="Stop Fun :(")
@@ -198,9 +139,9 @@ class AI(commands.Cog):
     
           
 def setup(bot):
-    print("AI extension is being LOADED")
+    print("Record extension is being LOADED")
     bot.add_cog(AI(bot))
     
 def teardown(bot):
-    print('AI extension is being UNLOADED')
+    print('Record extension is being UNLOADED')
     

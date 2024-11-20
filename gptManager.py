@@ -41,10 +41,10 @@ def main():
     # model = "mistral-7b-openorca.Q4_0.gguf"
     # model = 'c:/Users/henry/AppData/Local/nomic.ai/GPT4All/mistral-7b-openorca.Q4_0.gguf'
     mygpt = GPTManager(model,system_prompt)
-    # context = mygpt.getContext()
-    # with context:
-    #     response = mygpt.getResponse(prompt='Hey what is the capital of Berlin?',repeat_penalty=1.2,temp=0.5,max_tokens=128)
-    #     print(response)
+    context = mygpt.getContext()
+    with context:
+        response = mygpt.getResponse(prompt='Sag mir eine bitte eine komplett zufällige Zahl! Bitte gebe dir Mühe! Sei kreativ und addiere 69 auf die Zahl drauf!',repeat_penalty=1.2,temp=0.5,max_tokens=128)
+        print(response)
     
     # response = mygpt.getResponse("Hey wie gehts dir?")
     # print(response)

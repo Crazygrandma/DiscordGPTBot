@@ -6,6 +6,10 @@ load_dotenv()
 DISCORD_API_TOKEN = os.getenv('DISCORD_TOKEN')
 
 intents = discord.Intents.all()
+# intents.messages = True
+# intents.guilds = True
+# intents.voice_states = True
+# intents.members = True
 
 status = discord.Status.online
 activity = discord.Activity(type=discord.ActivityType.playing, name="GPT")

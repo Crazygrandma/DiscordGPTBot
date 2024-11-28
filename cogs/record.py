@@ -1,3 +1,6 @@
+import glob
+import importlib
+import sys
 import discord
 from discord import FFmpegPCMAudio
 from discord.ext import commands, tasks
@@ -5,19 +8,21 @@ from discord.commands import slash_command
 import asyncio
 import os
 import random
-from customVoiceClient import CustomVoiceClient
-from helper import get_recordings, mutagen_length, pickRandom, is_bot_connected
+import configparser
+# from customVoiceClient import CustomVoiceClient
+from helper import get_recordings, mutagen_length, pickRandom, is_bot_connected, ttsgTTS
 
 file_counter = 0
-max_files = 6
-loop_frequency = 30
-recording_length = 7
+max_files = 4
+loop_frequency = 20
+recording_length = 5
 allow_silence = True
 
 JOIN_ON_VOICE = False
 RUN_PLAY_RANDOM = False
 DIALOG_RUNNING = True
 
+config = configparser.ConfigParser()
 
 usernames = {
     395847854616215556: "MoviemakerHD",
@@ -31,6 +36,8 @@ class AI(commands.Cog):
     def __init__(self,bot) -> None:
         self.bot = bot
         self.guild = None
+        self.whisper = None
+        self.mygpt = None
         self.connections = {}
         
     @commands.Cog.listener()
@@ -39,42 +46,87 @@ class AI(commands.Cog):
         
     
     @tasks.loop(seconds=loop_frequency)
-    @is_bot_connected()
     async def dialogTask(self,ctx):
         voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         # Check recordings
         filenumber = get_recordings('./recordings')
         
+        await asyncio.sleep(random.randint(4,12))
+        
         if filenumber < max_files:
             # Muting bot
-            await ctx.guild.voice_client.guild.me.edit(mute=True)
-            await asyncio.sleep(5)
-            # record Audio for x seconds
-            await self.recordDialog(ctx,7)
-        else:
-            # Play random audio
-            #####print("Playing audio")
-            # Unmute
-            await ctx.guild.voice_client.guild.me.edit(mute=False)
+            # await ctx.guild.voice_client.guild.me.edit(mute=True)
             # await asyncio.sleep(5)
-            sound = pickRandom('./recordings')
-            source = FFmpegPCMAudio(sound)
-            length = mutagen_length(sound)
-            print(f"Waiting for {int(length)} or {recording_length}")
-            if int(length) == 0:
-                length = recording_length
+            # record Audio for x seconds
+            await self.recordDialog(ctx,random.randint(recording_length, recording_length+3))
+        else:
+            # TRANSSCRIBE AUDIO
+            transcribed_texts = self.transcribeDialog()
+            
+            answerToLLM = ""
+            for text in transcribed_texts:
+                answerToLLM += text
+            
+            print(answerToLLM)
+            
+            
+            print("Loading config")
+            config.read('config.ini',encoding='utf-8')
+            gpt = config['GPT']
+            elevenlabs = config['LABS']
+            GPT_MODEL = gpt['MODEL']
+            SYSTEM_PROMPT = gpt['SYSTEM_PROMPT']
+            maxtokens = gpt['maxtoken']
+            penalty = gpt['penalty']
+            temp = gpt['temp']
+            useElevenLabs = elevenlabs['enabled']
+            
+            
+            # GET ANSWER
+            if 'gptManager' not in sys.modules:
+                print("(Re)loading module")
+                gptmodule = importlib.import_module('gptManager','.')
+                self.mygpt = gptmodule.GPTManager(GPT_MODEL,SYSTEM_PROMPT)
+                print("GPT Model loaded")
+            
+            # Get response from LLM
+            response = self.mygpt.getResponse(
+                answerToLLM,
+                max_tokens=int(maxtokens),
+                repeat_penalty=float(penalty),
+                temp=float(temp)
+            )
+            print("Got a response")
+            print(response)
+
+
+
+            # Generate sound with gTTS
+            await ttsgTTS(response)
+                
+             
+            # PLAY TEXT
+            
+            length = mutagen_length("./response.mp3")
+            source = FFmpegPCMAudio("./response.mp3")
             voice_client.play(source)
-            await asyncio.sleep(int(length))
+            await asyncio.sleep(int(recording_length))
             # Delete picked sound to record
-            if os.path.exists(sound):
-                os.remove(sound)
+            if os.path.exists("./response.mp3"):
+                os.remove("./response.mp3")
                 ###print(f"{sound} has been deleted.")
             else:
+                print("AAAAAAAAAAAAAAA")
                 pass
                 ###print(f"{sound} does not exist.")
+
+            await asyncio.sleep(5)    
+            await self.recordDialog(ctx,recording_length)
      
     async def recordDialog(self,ctx,duration):
         voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        source = FFmpegPCMAudio(f"./sounds/silence.wav")
+        voice_client.play(source)
         voice_client.start_recording(
             discord.sinks.WaveSink(),  # The sink type to use.
             self.once_done,  # What to do once done.
@@ -85,6 +137,7 @@ class AI(commands.Cog):
         await asyncio.sleep(int(duration))
         #print("Done Recording!")
         voice_client.stop_recording()
+        voice_client.stop()
         # await ctx.guild.voice_client.guild.me.edit(mute=False)
     
     @slash_command(description="Stop Fun :(")
@@ -96,15 +149,11 @@ class AI(commands.Cog):
     async def startdialog(self,ctx):
         global file_counter
         file_counter = get_recordings('./recordings')
-        user = ctx.user.id
-        voice = ctx.author.voice
-        vc = None
-        if ctx.guild.id in self.connections:
-            vc = self.connections[ctx.guild.id]
-        else:
-            vc = await voice.channel.connect(cls=CustomVoiceClient)     
+        voice = ctx.author.voice  
+        vc = await voice.channel.connect()
+        print("Connecting with normal client")     
         self.connections.update({ctx.guild.id: vc})  # Updating the cache with the guild and channel.
-        print("Connection with custom voice client")
+        # print("Connection with custom voice client")
         await ctx.respond(f"Jo! {ctx.author.mention}") 
         self.dialogTask.start(ctx)
                      
@@ -136,6 +185,14 @@ class AI(commands.Cog):
         sink.audio_data.clear()
         #####print("Sink audio data cleared.")       
     
+    async def transcribeDialog(self):
+        transcribed_text = []
+        recordings = glob.glob(f'recordings/*.wav')
+        for filepath in recordings:
+            basenamefile = os.path.basename(filepath)[:-4]
+            result = self.whispermodel.transcribe(filepath)
+            transcribed_text.append(f"[{basenamefile}]: {result['text']}")
+        return transcribed_text
     
           
 def setup(bot):

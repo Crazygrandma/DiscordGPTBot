@@ -1,10 +1,9 @@
-
 import asyncio
 import discord
 from discord.ext import commands
 from discord.commands import slash_command
 from discord import FFmpegPCMAudio
-from customVoiceClient import CustomVoiceClient
+# from customVoiceClient import CustomVoiceClient
 from helper import is_bot_connected, mutagen_length
 
 
@@ -26,7 +25,8 @@ class Greet(commands.Cog):
         voice_client = discord.utils.get(self.bot.voice_clients, guild=member.guild)
         if member.bot:
             return
-        
+        if voice_client == None:
+            return
         # user joins channel
         if before.channel == None and after.channel is not None:
             print(f"User joined {after.channel}")
@@ -55,7 +55,7 @@ class Greet(commands.Cog):
         if ctx.voice_client is not None:
             return await ctx.voice_client.move_to(channel)
 
-        await channel.connect(cls=CustomVoiceClient)
+        await channel.connect()
         await ctx.respond("Jo!")
 
     @slash_command(description="Leave the voice channel")

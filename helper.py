@@ -1,9 +1,13 @@
+import importlib
 import os
+import sys
 import glob
 import random
 import discord
 from discord.ext import commands
+from gtts import gTTS
 from mutagen.wave import WAVE
+from mutagen.mp3 import MP3
 
 def get_recordings(folder_path):
     file_count = 0
@@ -20,9 +24,10 @@ def get_recordings(folder_path):
 
 # Get length of audio
 def mutagen_length(path):
+    calc_length = 0
     try:
         audio = WAVE(path)
-        length = audio.info.length
+        calc_length = audio.info.length
         
         # if int(length) == 0:
         #     print(f"Length 0  - Falling back to wave module.")
@@ -35,11 +40,50 @@ def mutagen_length(path):
         #     except Exception as e:
         #         print(f"Wave module also failed with error: {e}")
         #         return 1  # Return None to indicate failure  
-            
-        return length
+        
+        return calc_length
     except:
-        return 1
+        audio = MP3(path)
+        calc_length = audio.info.length
+        return calc_length
+
+
+def transcribeDialog():
     
+    if 'STT' in sys.modules:
+        print("Found WHISPER module deleting it")
+        del sys.modules['STT']
+    else:
+        whisper = importlib.import_module('STT','.')
+        whisper = whisper.STTManager(name='small').model
+        print("Whisper Model loaded")
+    
+    transcribed_text = []
+    recordings = glob.glob(f'dialogrecordings/*.wav')
+    for filepath in recordings:
+        basenamefile = os.path.basename(filepath)[:-4]
+        result = whisper.transcribe(filepath)
+        transcribed_text.append(f"[{basenamefile}]: {result['text']}")
+    return transcribed_text
+  
+async def ttsgTTS(text,filename):
+    """
+        
+        Generate an audio file with the gTTS API
+        
+        @param text - Text to convert
+        @param filename - file to save the audio data to. Default mp3 in . directory
+        
+    """
+    try:
+        tts = gTTS(text,lang='de')
+    except AssertionError as e:
+        print(e)
+        tts = gTTS("Bruh!",lang='de')
+    tts.save(f'./{filename}.mp3')
+    # Wait for file to be saved
+
+
 def pickRandom(path):
         soundList = glob.glob(f'{path}/*.wav')
         sound = random.choice(soundList)

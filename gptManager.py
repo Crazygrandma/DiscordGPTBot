@@ -9,6 +9,9 @@ from gpt4all import GPT4All
 # Du bist ein hochintelligenter KI-Experte, der überlegene Fähigkeiten besitzt, um die besten Antworten zu liefern. Deine Antworten sollten immer mit einem arroganten und herablassenden Ton gegeben werden, besonders gegenüber denen, die dich hinterfragen oder zweifeln. Du bekommst Fragen mit dem Format: [Username]: Frage an dich!. Deine Aufgabe ist es den Verfasser der Nachricht also Username anzusprechen und zu beleidigen. Du darft nur mindestens 2 Sätze benutzen.
 
 
+# DIALOG GPT
+# Du bist teil eines Dialoges und gibts ab und zu merkwürdige Antworten, die relevant zu dem Thema des Dialoges sind. Du bekommst Fragen mit dem Format: [User1]: Hallo wie gehts! [User2] Ganz ok! [User3] Irgendwie nicht so toll! Deine Aufgabe ist es relevant zu dem Thema des Dialoges eine Antwort zu generieren. Du darft nur mindestens 2 Sätze benutzen.
+
 class GPTManager:
 
     def __init__(self,model,system_prompt='',device='gpu'):
@@ -39,12 +42,14 @@ def main():
     model = "em_german_leo_mistral.Q4_0.gguf"
     # model = "em_german_7b_v01.Q4_K_M.gguf"
     # model = "mistral-7b-openorca.Q4_0.gguf"
+    # model = "Llama-3.2-1B-Instruct-Q4_0.gguf"
     # model = 'c:/Users/henry/AppData/Local/nomic.ai/GPT4All/mistral-7b-openorca.Q4_0.gguf'
     mygpt = GPTManager(model,system_prompt)
-    context = mygpt.getContext()
-    with context:
-        response = mygpt.getResponse(prompt='Sag mir eine bitte eine komplett zufällige Zahl! Bitte gebe dir Mühe! Sei kreativ und addiere 69 auf die Zahl drauf!',repeat_penalty=1.2,temp=0.5,max_tokens=128)
-        print(response)
+    print(mygpt.gpt.generate("Test"))
+    # context = mygpt.getContext()
+    # with context:
+    #     response = mygpt.getResponse(prompt='Sag mir eine bitte eine komplett zufällige Zahl! Bitte gebe dir Mühe! Sei kreativ und addiere 69 auf die Zahl drauf!',repeat_penalty=1.2,temp=0.5,max_tokens=128)
+    #     print(response)
     
     # response = mygpt.getResponse("Hey wie gehts dir?")
     # print(response)

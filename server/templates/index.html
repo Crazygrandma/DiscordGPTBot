@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Bot Command Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .logo {
+            width: 100px;
+            height: 100px;
+            background-color: white;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        table {
+            width: 60%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .enable-btn {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .enable-btn:hover {
+            background-color: #219150;
+        }
+
+        .disable-btn {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .disable-btn:hover {
+            background-color: #c0392b;
+        }
+    </style>
+    <script>
+        async function loadCommands() {
+            const response = await fetch('/commands');
+            const commands = await response.json();
+            const tableBody = document.getElementById("commands-table-body");
+            tableBody.innerHTML = "";
+            Object.keys(commands).forEach(command => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${command}</td>
+                    <td>${commands[command] ? "Enabled" : "Disabled"}</td>
+                    <td>
+                        <button class="${commands[command] ? 'disable-btn' : 'enable-btn'}"
+                                onclick="toggleCommand('${command}', ${!commands[command]})">
+                            ${commands[command] ? "Disable" : "Enable"}
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        async function toggleCommand(command, status) {
+            await fetch('/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command, status })
+            });
+            loadCommands();
+        }
+
+        window.onload = loadCommands;
+    </script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">BOT</div>
+        <h2>Command Manager</h2>
+    </div>
+    <div class="content">
+        <h1>Discord Bot Command Manager</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Command</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="commands-table-body"></tbody>
+        </table>
+    </div>
+</body>
+</html>
